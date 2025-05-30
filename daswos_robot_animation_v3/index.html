@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daswos Robot Animation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 60px 0 0 140px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        .scale-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .scale-controls label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .scale-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .scale-slider {
+            width: 150px;
+            height: 5px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .scale-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4285f4;
+            cursor: pointer;
+        }
+        .scale-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4285f4;
+            cursor: pointer;
+            border: none;
+        }
+        .scale-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .scale-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            background-color: #4285f4;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 12px;
+        }
+        .scale-btn:hover {
+            background-color: #3367d6;
+        }
+        .scale-value {
+            font-size: 12px;
+            color: #666;
+            min-width: 40px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4285f4;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #4285f4;
+        }
+
+        /* Chat Interface Styles - Speech Bubble Design */
+        .chat-container {
+            position: absolute;
+            top: 15%;
+            left: 55%;
+            width: 400px;
+            height: 300px;
+            background-color: rgba(255, 255, 255, 0.98);
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            overflow: hidden;
+            border: 3px solid #e0e0e0;
+        }
+
+        /* Speech bubble tail pointing to robot */
+        .chat-container::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 20px solid transparent;
+            border-bottom: 20px solid transparent;
+            border-right: 20px solid rgba(255, 255, 255, 0.98);
+            z-index: -1;
+        }
+
+        /* Speech bubble tail border */
+        .chat-container::after {
+            content: '';
+            position: absolute;
+            left: -23px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 23px solid transparent;
+            border-bottom: 23px solid transparent;
+            border-right: 23px solid #e0e0e0;
+            z-index: -2;
+        }
+
+        .chat-header {
+            background-color: transparent;
+            color: #4285f4;
+            padding: 12px 20px 8px 20px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 16px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 10px 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 180px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 12px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .message.user {
+            background-color: #4285f4;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.robot {
+            background-color: #f1f3f4;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.thinking {
+            background-color: #e8f0fe;
+            color: #1a73e8;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+            font-style: italic;
+        }
+
+        .chat-input-container {
+            padding: 12px 20px 15px 20px;
+            border-top: 2px solid #f0f0f0;
+            display: flex;
+            gap: 8px;
+            background-color: rgba(248, 249, 250, 0.8);
+            border-radius: 0 0 22px 22px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #4285f4;
+        }
+
+        .chat-send-btn {
+            padding: 10px 20px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .chat-send-btn:hover {
+            background-color: #3367d6;
+        }
+
+        .chat-send-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .product-card {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .product-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .product-price {
+            color: #4285f4;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .product-description {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Robot Speech Bubble Styles */
+        .robot-speech-bubble {
+            position: absolute;
+            background-color: white;
+            border: 3px solid #4285f4;
+            border-radius: 20px;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            max-width: 250px;
+            text-align: center;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+            display: none;
+        }
+
+        /* Speech bubble tail pointing down to robot */
+        .robot-speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid rgba(255, 255, 255, 0.95);
+        }
+
+        /* Speech bubble tail border */
+        .robot-speech-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 12px solid #4285f4;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 60px 0 0 0;
+            }
+
+            .header-bar {
+                padding: 0 10px;
+                flex-direction: column;
+                height: auto;
+                gap: 10px;
+                padding: 10px;
+            }
+
+            .header-left, .header-right {
+                gap: 10px;
+            }
+
+            .header-center {
+                order: -1;
+                margin: 0;
+                max-width: none;
+            }
+
+            .header-query-input {
+                font-size: 14px;
+                padding: 10px 15px;
+            }
+
+            .header-send-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .header-btn {
+                font-size: 14px;
+                padding: 6px 12px;
+            }
+
+            .header-icon {
+                font-size: 16px;
+            }
+
+            .left-sidebar {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                top: auto;
+                transform: translateX(-50%);
+                flex-direction: row;
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center;
+                max-width: 90vw;
+            }
+
+            .robot-control-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                min-width: 60px;
+            }
+
+            .chat-container {
+                width: 320px;
+                height: 280px;
+                left: 50%;
+                top: 20%;
+                transform: translateX(-50%);
+            }
+
+            /* Hide speech bubble tail on mobile for cleaner look */
+            .chat-container::before,
+            .chat-container::after {
+                display: none;
+            }
+
+            .scale-controls {
+                top: 120px;
+                right: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-btn {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+
+            .header-btn .header-icon {
+                font-size: 14px;
+            }
+
+            /* Hide text on very small screens, show only icons */
+            .header-btn span:not(.header-icon) {
+                display: none;
+            }
+
+            .chat-container {
+                width: 280px;
+                height: 260px;
+                left: 50%;
+                top: calc(5% + 30px);
+            }
+
+            .chat-messages {
+                max-height: 140px;
+                padding: 8px 15px;
+            }
+
+            .chat-input-container {
+                padding: 10px 15px 12px 15px;
+            }
+        }
+
+        /* Header Bar Styling */
+        .header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c2c2c;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .header-center {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 20px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-btn.cart {
+            border: 2px solid white;
+            border-radius: 8px;
+            padding: 8px 16px;
+        }
+
+        .header-btn.cart:hover {
+            background-color: white;
+            color: #2c2c2c;
+        }
+
+        .header-icon {
+            font-size: 18px;
+        }
+
+        /* Header Query Input */
+        .header-query-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .header-query-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            background-color: white;
+            font-size: 16px;
+            outline: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+
+        .header-query-input:focus {
+            box-shadow: 0 4px 16px rgba(66, 133, 244, 0.3);
+        }
+
+        .header-send-btn {
+            padding: 12px 24px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+        }
+
+        .header-send-btn:hover {
+            background-color: #3367d6;
+        }
+
+        .header-send-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Left Sidebar for Robot Controls */
+        .left-sidebar {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .robot-control-btn {
+            padding: 12px 20px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 80px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .robot-control-btn:hover {
+            background-color: #3367d6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .robot-control-btn:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .robot-control-btn:disabled:hover {
+            background-color: #ccc;
+            transform: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+
+    </style>
+</head>
+<body>
+    <!-- Header Bar -->
+    <div class="header-bar">
+        <div class="header-left">
+            <button class="header-btn" id="walletBtn">
+                <span class="header-icon">💳</span>
+                Wallet
+            </button>
+            <button class="header-btn" id="sellBtn">
+                <span class="header-icon">🏪</span>
+                Sell
+            </button>
+        </div>
+        <div class="header-center">
+            <div class="header-query-container">
+                <input type="text" class="header-query-input" id="headerQueryInput" placeholder="Ask me about products..." maxlength="500">
+                <button class="header-send-btn" id="headerSendBtn">Send</button>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="header-btn cart" id="cartBtn">
+                <span class="header-icon">🛒</span>
+                Cart
+            </button>
+            <button class="header-btn" id="signInBtn">
+                <span class="header-icon">👤</span>
+                Sign in
+            </button>
+        </div>
+    </div>
+
+    <!-- Left Sidebar for Robot Controls -->
+    <div class="left-sidebar">
+        <button class="robot-control-btn" id="idleBtn">Idle</button>
+        <button class="robot-control-btn" id="talkBtn">Talk</button>
+        <button class="robot-control-btn" id="danceBtn">Dance</button>
+        <button class="robot-control-btn" id="rollBtn">Roll</button>
+        <button class="robot-control-btn" id="searchBtn">Search</button>
+        <button class="robot-control-btn" id="exitRightBtn">Exit Right</button>
+        <button class="robot-control-btn" id="comeBackBtn">Come Back</button>
+        <button class="robot-control-btn" id="centerBtn">Center</button>
+        <button class="robot-control-btn" id="testSpeechBtn">Test Speech</button>
+    </div>
+
+    <div id="loading" class="loading">Loading Daswos Robot...</div>
+
+    <!-- Robot Response Bubble -->
+    <div class="chat-container" id="responseBubble" style="display: none;">
+        <div class="chat-header">
+            💬 Daswos Response
+        </div>
+        <div class="chat-messages" id="chatMessages">
+        </div>
+    </div>
+
+    <div class="scale-controls">
+        <label>Robot Size</label>
+        <div class="scale-slider-container">
+            <input type="range" id="scaleSlider" class="scale-slider" min="0.01" max="1.5" step="0.01" value="0.5">
+            <span id="scaleValue" class="scale-value">50%</span>
+        </div>
+        <div class="scale-buttons">
+            <button id="scaleDownBtn" class="scale-btn">−</button>
+            <button id="resetScaleBtn" class="scale-btn">Reset</button>
+            <button id="scaleUpBtn" class="scale-btn">+</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="chat.js"></script>
+    <script src="robot.js"></script>
+</body>
+</html>
